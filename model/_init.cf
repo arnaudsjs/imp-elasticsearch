@@ -1,0 +1,49 @@
+"""
+    Copyright 2013 KU Leuven Research and Development - iMinds - Distrinet
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+    Administrative Contact: dnet-project-office@cs.kuleuven.be
+    Technical Contact: arnaud.schoonjans@cs.kuleuven.be
+"""
+
+entity Cluster:
+    """
+        An elasic search cluster
+    """
+    string clustername         	
+end
+
+entity ElasticSearch extends ip::services::Server:
+    """
+        An elasic search server
+    """
+    string nodename
+end
+
+Cluster cluster [1] -- [1:] ElasticSearch servers
+
+implementation elasticSearch:
+    rep = std::File(host = self.host, path="/etc/yum.repos.d/elasticsearch.repo", 
+	            content=file("elasticsearch/elasticsearch.repo"), mode=644, owner="root", group="root")
+    pkg = std::Package(host = self.host, name = "elasticsearch", state = "installed", requires=[rep])
+    jva = std::Package(host = self.host, name = "java-1.7.0-openjdk", state = "installed")
+    agent_config = std::ConfigFile(host = self.host, path = "/etc/elasticsearch/elasticsearch.yml", 
+				   content = template("elasticsearch/elasticsearch.yml.tmpl"), mode=755, 
+				   owner="elasticsearch", group="elasticsearch", reload = true, requires=[pkg]) 
+    svc = std::Service(host = self.host, name = "elasticsearch", state = "running", onboot = true, 
+		       requires = [agent_config, pkg, jva, rep])
+end
+
+implement ElasticSearch using elasticSearch
+implement Cluster using std::none
